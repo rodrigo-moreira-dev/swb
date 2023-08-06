@@ -273,10 +273,18 @@ void traduzInicioFuncao(Func f) {
 /*
  * Traduz a instrução de retorno da função
  */
-void traduzRetorno(Func f, int ret) {
-  // TODO
-  // Traduz apenas retornos de constantes inteiras por enquanto
-  printf("movl $%d, %%eax\n", ret);
+void traduzRetorno(Func f, char tipo_item_retorno, char tipo_valor_retorno,
+                   int posicao_retorno) {
+  if (tipo_item_retorno == 'c') { // retorno é uma constante
+    printf("movl $%d, %%eax\n", posicao_retorno);
+  } else if (tipo_item_retorno == 'p' ||  // retorno é parametro
+             tipo_valor_retorno == 'r') { // ou variavel local de registrador
+    printf("movl %s, %%eax\n",
+           getRegistrador(f, tipo_item_retorno, tipo_valor_retorno,
+                          posicao_retorno));
+  } else if (tipo_valor_retorno == 'i') { // retorno é variavel local de pilha
+    printf("movl -%d(%%rbp), %%eax\n", getOffset(f, 'v', posicao_retorno));
+  }
   printf("jmp fim_f%d\n\n", f.nome);
 }
 
@@ -472,7 +480,6 @@ int main() {
   int line_count = 0; // contagem de linhas lidas
   int r;              // quantidade de valores lidos pelo sscanf
   int var_loc_count;  // contagem do total de variaveis locais da funcao
-  int ret;            // valor retornado pela funcao atual
 
   Func funcao;
   inicializaFuncao(&funcao);
@@ -517,9 +524,15 @@ int main() {
     /*
      * Retorno da função
      */
-    r = sscanf(line, "return ci%d", &ret);
-    if (r == 1) {
-      traduzRetorno(funcao, ret);
+    char tipo_item_retorno;
+    char tipo_valor_retorno;
+    int posicao_retorno;
+    r = sscanf(line, "return %c%c%d", &tipo_item_retorno, &tipo_valor_retorno,
+               &posicao_retorno);
+    if (r == 3) {
+      printf("# %s\n", line);
+      traduzRetorno(funcao, tipo_item_retorno, tipo_valor_retorno,
+                    posicao_retorno);
       continue;
     }
 
