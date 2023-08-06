@@ -25,7 +25,6 @@ typedef struct {
    * n  - Array de n posicoes
    */
   int var_loc[MAX_VARS];
-
 } Func;
 
 /*
@@ -232,23 +231,27 @@ const char *getRegistrador(Func f, char tipo_item, char tipo_valor,
  */
 void alocaRegistradores(Func f) {
   int i = 0;
+  int countRegistradores = 0; // Conta a quantidade de variaveis de registrador
   while (i < MAX_VARS) {
     int var = f.var_loc[i];
 
-    if (i == 0 && var != -1) {
-      printf("# Registradores das variaveis locais\n");
-    }
-
     if (var == -1) { // nao tem mais variaveis locais
+      if (countRegistradores > 0) {
+        printf("\n");
+      }
+
       break;
     } else if (var == 0) { // variavel de registrador
+      countRegistradores++;
+      if (countRegistradores == 1) {
+        printf("# Variaveis locais de registrador\n");
+      }
+
       printf("# vr%d: %s\n", i + 1, getRegistrador(f, 'v', 'i', i + 1));
     }
 
     i++;
   }
-
-  printf("\n");
 }
 
 /*
@@ -270,15 +273,15 @@ void traduzInicioFuncao(Func f) {
 /*
  * Traduz a instrução de retorno da função
  */
-void traduzRetorno(int ret) {
+void traduzRetorno(Func f, int ret) {
   // TODO
   // Traduz apenas retornos de constantes inteiras por enquanto
   printf("movl $%d, %%eax\n", ret);
-  printf("jmp fim\n\n");
+  printf("jmp fim_f%d\n\n", f.nome);
 }
 
-void traduzFimFuncao() {
-  printf("fim:\n");
+void traduzFimFuncao(Func f) {
+  printf("fim_f%d:\n", f.nome);
   printf("leave\n");
   printf("ret\n\n");
 }
@@ -339,12 +342,8 @@ void traduzAtribuicaoSimples(Func f, char tipo_valor_variavel,
    */
   if (tipo_item_operando == 'c') {
     snprintf(source, sizeof(source), "$%d", posicao_operando);
-  } else if (tipo_item_operando == 'p') { // operando é parametro
-    snprintf(source, sizeof(source), "%s",
-             getRegistrador(f, tipo_item_operando, tipo_valor_operando,
-                            posicao_operando));
-  } else if (tipo_valor_operando ==
-             'r') { // operando é variavel local de registrador
+  } else if (tipo_item_operando == 'p' ||  // operando é parametro
+             tipo_valor_operando == 'r') { // ou variavel local de registrador
     snprintf(source, sizeof(source), "%s",
              getRegistrador(f, tipo_item_operando, tipo_valor_operando,
                             posicao_operando));
@@ -354,6 +353,108 @@ void traduzAtribuicaoSimples(Func f, char tipo_valor_variavel,
   }
 
   printf("movl %s, %s\n\n", source, dest);
+}
+
+/*
+ * Traduz uma atribuição com operação
+ *
+ * tipo_valor_variavel:
+ *  'i' -> variavel de pilha
+ *  'r' -> variavel de registrador
+ *
+ * tipo_item_operando:
+ *  'c' -> constante
+ *  'p' -> parametro da função
+ *  'v' -> variavel local da função
+ *
+ *  tipo_valor_operando:
+ *   'i' -> inteiro
+ *   'a' -> array
+ */
+void traduzAtribuicaoOperacao(Func f, char tipo_valor_variavel,
+                              int posicao_variavel, char tipo_item_operando1,
+                              char tipo_valor_operando1, int posicao_operando1,
+                              char operacao, char tipo_item_operando2,
+                              char tipo_valor_operando2,
+                              int posicao_operando2) {
+  const char *operacoes[] = {"addl", "subl", "imull", "idivl"};
+
+  // Primeiro move o primeiro operando para %eax onde será armazenado o
+  // resultado final da operação
+  if (tipo_item_operando1 == 'c') { // operando é constante
+    printf("movl $%d, %%eax\n", posicao_operando1);
+  } else if (tipo_item_operando1 == 'p') { // operando é parametro
+    printf("movl %s, %%eax\n",
+           getRegistrador(f, tipo_item_operando1, tipo_valor_operando1,
+                          posicao_operando1));
+  } else if (tipo_valor_operando1 ==
+             'r') { // operando é variavel local de registrador
+    printf("movl %s, %%eax\n",
+           getRegistrador(f, tipo_item_operando1, tipo_valor_operando1,
+                          posicao_operando1));
+  } else if (tipo_valor_operando1 ==
+             'i') { // operando é variavel local de pilha
+    printf("movl -%d(%%rbp), %%eax\n", getOffset(f, 'v', posicao_operando1));
+  }
+
+  // Define qual operacao será traduzida com base no caracter da operacao
+  int i;
+  switch (operacao) {
+  case '+':
+    i = 0;
+    break;
+  case '-':
+    i = 1;
+    break;
+  case '*':
+    i = 2;
+    break;
+  case '/':
+    i = 3;
+    break;
+  }
+
+  // Traduz a operação
+  // Como a tradução da divisão é levemente diferente ela é feita separada
+  if (tipo_item_operando2 == 'c') { // operando é constante
+    if (operacao == '/') {
+      printf("cdq\n"); // operacoes necessarias para se usar o idiv
+      printf("movl $%d, %%ebx\n", posicao_operando2);
+      printf("%s %%ebx\n", operacoes[i]);
+    } else {
+      printf("%s $%d, %%eax\n", operacoes[i], posicao_operando2);
+    }
+  } else if (tipo_item_operando2 == 'p' ||  // operando é parametro
+             tipo_valor_operando2 == 'r') { // ou variavel local de registrador
+    if (operacao == '/') {
+      printf("cdq\n"); // operacoes necessarias para se usar o idiv
+      printf("%s %s\n", operacoes[i],
+             getRegistrador(f, tipo_item_operando2, tipo_valor_operando2,
+                            posicao_operando2));
+    } else {
+      printf("%s %s, %%eax\n", operacoes[i],
+             getRegistrador(f, tipo_item_operando2, tipo_valor_operando2,
+                            posicao_operando2));
+    }
+  } else if (tipo_valor_operando2 ==
+             'i') { // operando é variavel local de pilha
+    if (operacao == '/') {
+      printf("cdq\n"); // operacoes necessarias para se usar o idiv
+      printf("%s -%d(%%rbp)\n", operacoes[i],
+             getOffset(f, 'v', posicao_operando2));
+    } else {
+      printf("%s -%d(%%rbp), %%eax\n", operacoes[i],
+             getOffset(f, 'v', posicao_operando2));
+    }
+  }
+
+  // Move o o resultado da operação para a pilha ou o registrador em questão
+  if (tipo_valor_variavel == 'i') { // variavel de pilha
+    printf("movl %%eax, -%d(%%rbp)\n\n", getOffset(f, 'v', posicao_variavel));
+  } else if (tipo_valor_variavel == 'r') { // variavel de registrador
+    printf("movl %%eax, %s\n\n",
+           getRegistrador(f, 'v', tipo_valor_variavel, posicao_variavel));
+  }
 }
 
 // Remove o '\n' do fim da linha
@@ -418,7 +519,7 @@ int main() {
      */
     r = sscanf(line, "return ci%d", &ret);
     if (r == 1) {
-      traduzRetorno(ret);
+      traduzRetorno(funcao, ret);
       continue;
     }
 
@@ -426,7 +527,7 @@ int main() {
      * Fim da definição da função
      */
     if (strncmp(line, "end", 3) == 0) {
-      traduzFimFuncao();
+      traduzFimFuncao(funcao);
 
       // Reinicializa a struct da função para ler uma possivel proxima função
       inicializaFuncao(&funcao);
@@ -486,7 +587,10 @@ int main() {
     // Atribuição com operação
     if (r == 9) {
       printf("# %s\n", line);
-      printf(" # TODO\n\n");
+      traduzAtribuicaoOperacao(funcao, tipo_valor_variavel, posicao_variavel,
+                               tipo_item_operando1, tipo_valor_operando1,
+                               posicao_operando1, operacao, tipo_item_operando2,
+                               tipo_valor_operando2, posicao_operando2);
       continue;
     }
   }
