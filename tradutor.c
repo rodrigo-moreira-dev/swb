@@ -48,6 +48,13 @@ void inicializaFuncao(Func *f) {
  * Calcula o offset que um parametro ou uma variavel local está armazenada na
  * pilha
  *
+ * Os offsets para as variaveis locais de registradores são utilizados para
+ * armazenar os valores previamente disponiveis nesses registradores ao entrar
+ * numa função
+ *
+ * Os offsets para os parametros são utilizados para armazenar os valores nos
+ * registradores %rdi, %rsi, %rdx conforme seja necessario chamar outras funções
+ *
  * tipo_item:
  *  'p' - parametro
  *  'v' - variavel local
@@ -72,10 +79,11 @@ int getOffset(Func f, char tipo_item, int posicao) {
 
     if (tipo_var_loc == -1) { // nao tem mais variaveis locais
       break;
-    } else if (tipo_var_loc == 1) { // variavel local de pilha
+    } else if (tipo_var_loc == 1 || // variavel local de pilha
+               tipo_var_loc == 0) { // ou variavel local de registrador
       offset = offset + 4;          // soma 4 pois é o tamanho de uma variavel
                                     // local (todas são inteiro)
-    } else if (tipo_var_loc >= 1) { // variavel local array
+    } else if (tipo_var_loc > 1) {  // variavel local array
       offset =
           offset + (tipo_var_loc * 4); // soma o tamanho do array multiplicada
                                        // por 4 (tamanho de um inteiro)
@@ -137,12 +145,19 @@ void alocaPilha(Func f) {
 
     if (tipo_var_loc == -1) { // nao tem mais variaveis locais
       break;
+    } else if (tipo_var_loc == 0) { // variavel local de registrador
+      bytesPilha = getOffset(f, 'v', (i + 1));
+
+      // imprime o offset em que o valor previo do registrador será armazenado
+      printf("# vr%d: -%d(%%rbp)\n", i + 1, bytesPilha);
     } else if (tipo_var_loc == 1) { // variavel local de pilha
       bytesPilha = getOffset(f, 'v', (i + 1));
+
       // imprime o offset em que a variavel local de pilha será armazenada
       printf("# vi%d: -%d(%%rbp)\n", i + 1, bytesPilha);
     } else if (tipo_var_loc >= 1) { // variavel local array
       bytesPilha = getOffset(f, 'v', (i + 1));
+
       // imprime o offset em que a primeira posição do array será armazenada
       printf("# va%d: -%d(%%rbp)\n", i + 1, bytesPilha);
     }
@@ -189,13 +204,23 @@ void alocaPilha(Func f) {
  *  'i' - inteiro
  *  'a' - array
  *
- * Como as variaveis locais de registrador são armazenadas nos registradores
- * r8 a r11 esta função retorna apenas o numero do registrador
+ * Toda função será tratada como função interna:
+ *  - Os valores temporarios serão armazenados em registradores caller-saved
+ * (%rdi, %rsi, %rdx, %rcx, %r8, %r9, %r10, %11, %rax)
+ *  - Os valores importantes (variaveis locais) são armazenadas em registradores
+ * callee-saved (%rbx, %r12, %r13, %r14, %r15)
+ *
+ * Como as funções tem no maximo três parametros apenas os parametros %rdi, %rsi
+ * e %rdx (e suas variações de 4 bytes) serão usados para parametros
+ *
+ * Como as funções tem no maximo quatro variaveis inteiras de registrador os
+ * registradores %r12d, %r13d, %r14d, %r15d serão usados para essas variaveis
+ * locais
  */
 const char *getRegistrador(Func f, char tipo_item, char tipo_valor,
                            int posicao) {
-  const char *registradores[] = {"%rdi", "%rsi", "%rdx", "%edi",  "%esi",
-                                 "%edx", "%r8d", "%r9d", "%r10d", "%r11d"};
+  const char *registradores[] = {"%rdi", "%rsi",  "%rdx",  "%edi",  "%esi",
+                                 "%edx", "%r12d", "%r13d", "%r14d", "%r15d"};
   if (tipo_item == 'p') {
     if (tipo_valor == 'i') {
       return registradores[posicao - 1 +
@@ -223,11 +248,84 @@ const char *getRegistrador(Func f, char tipo_item, char tipo_valor,
 }
 
 /*
+ * Traduz o codigo para salvar um item qualquer na pilha
+ *
+ * Pode ser usado para salvar os registradores das variaveis locais de
+ * registrador %r12d a %r15d (callee-saved) ao entrar numa função ou para salvar
+ * os parametros %rdi, %rsi, %rdx (caller-saved) antes de realizar a chamada de
+ * uma função
+ *
+ * tipo_item
+ *  - 'p' -> parametro
+ *  - 'v' -> variavel local
+ *
+ *  tipo_valor
+ *   - 'a' -> vetor
+ *   - 'i' -> inteiro (se for variavel local será um inteiro de registrador)
+ *   - 'r' -> variavel local de registrador
+ *
+ *   operacao
+ *    - 'w' -> salvar (write) algum valor na pilha
+ *    - 'r' -> resgatar (read) algum valor na pilha
+ */
+void traduzSalvamentoItem(Func f, char tipo_item, char tipo_valor, int posicao,
+                          char operacao) {
+  char registrador[16];
+
+  // Traduz escrita ou leitura de parametros para/da a pilha
+  if (tipo_item == 'p') {
+    printf("# Item é um parametro\n");
+    // armazena o registrador desse parametro numa string
+    snprintf(registrador, sizeof(registrador), "%s",
+             getRegistrador(f, tipo_item, tipo_valor, posicao));
+
+    if (tipo_valor == 'a') {
+      if (operacao == 'w') {
+        printf("movq %s, -%d(%%rbp) # guarda o valor do parametro %c%c%d\n",
+               registrador, getOffset(f, tipo_item, posicao), tipo_item,
+               tipo_valor, posicao);
+      } else if (operacao == 'r') {
+        printf("movq -%d(%%rbp), %s # resgata o valor do parametro %c%c%d\n",
+               getOffset(f, tipo_item, posicao), registrador, tipo_item,
+               tipo_valor, posicao);
+      }
+    } else if (tipo_valor == 'i') {
+      if (operacao == 'w') {
+        printf("movl %s, -%d(%%rbp) # guarda o valor do parametro %c%c%d\n",
+               registrador, getOffset(f, tipo_item, posicao), tipo_item,
+               tipo_valor, posicao);
+      } else if (operacao == 'r') {
+        printf("movl -%d(%%rbp), %s # resgate o valor do parametro %c%c%d\n",
+               getOffset(f, tipo_item, posicao), registrador, tipo_item,
+               tipo_valor, posicao);
+      }
+    }
+  }
+
+  // Traduz escrita ou leitura de variaveis inteiras de registrador para/da a
+  // pilha
+  if (tipo_item == 'v') {
+    snprintf(registrador, sizeof(registrador), "%s",
+             getRegistrador(f, tipo_item, tipo_valor, posicao));
+
+    if (tipo_valor == 'r') {
+      if (operacao == 'w') {
+        printf("movl %s, -%d(%%rbp) # guarda o valor previo do registrador \n",
+               registrador, getOffset(f, tipo_item, posicao));
+      } else if (operacao == 'r') {
+        printf("movl -%d(%%rbp), %s # resgata o valor previo do registrador \n",
+               getOffset(f, tipo_item, posicao), registrador);
+      }
+    }
+  }
+}
+
+/*
  * "Aloca" os registradores para as variaveis locais de registrador
  *
- * Como nenhuma alocação é realmente necessaria esta função apenas imprime um
- * comentario com o registrador em que será armazenada cada variavel local de
- * registrador
+ * Como essas variaveis são armazenadas em registradores callee-saved, essa
+ * função ira armazenar os valores previamente contidos nesses registradores na
+ * pilha de função, para que sejam resgatados antes da função retornar
  */
 void alocaRegistradores(Func f) {
   int i = 0;
@@ -245,9 +343,11 @@ void alocaRegistradores(Func f) {
       countRegistradores++;
       if (countRegistradores == 1) {
         printf("# Variaveis locais de registrador\n");
+        printf("# Guarda os valores previos dos registradores\n");
       }
 
-      printf("# vr%d: %s\n", i + 1, getRegistrador(f, 'v', 'i', i + 1));
+      printf("# vr%d: %s\n", i + 1, getRegistrador(f, 'v', 'r', i + 1));
+      traduzSalvamentoItem(f, 'v', 'r', i + 1, 'w');
     }
 
     i++;
@@ -288,7 +388,37 @@ void traduzRetorno(Func f, char tipo_item_retorno, char tipo_valor_retorno,
   printf("jmp fim_f%d\n\n", f.nome);
 }
 
+/*
+ * Restaura os valores previos dos registradores callee-saved (%r12 a %r15) que
+ * foram usados para as variaveis locais dessa função
+ */
+void desalocaRegistradores(Func f) {
+  int i = 0;
+  int countRegistradores = 0; // Conta a quantidade de variaveis de registrador
+  while (i < MAX_VARS) {
+    int tipo_valor = f.var_loc[i];
+
+    if (tipo_valor == -1) { // nao tem mais variaveis locais
+      if (countRegistradores > 0) {
+        printf("\n");
+      }
+
+      break;
+    } else if (tipo_valor == 0) { // variavel de registrador
+      countRegistradores++;
+      if (countRegistradores == 1) {
+        printf("# Restaura os valores previos dos registradores callee-saved\n");
+      }
+
+      traduzSalvamentoItem(f, 'v', 'r', i + 1, 'r');
+    }
+
+    i++;
+  }
+}
+
 void traduzFimFuncao(Func f) {
+  desalocaRegistradores(f);
   printf("fim_f%d:\n", f.nome);
   printf("leave\n");
   printf("ret\n\n");
