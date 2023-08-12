@@ -274,28 +274,27 @@ void traduzSalvamentoItem(Func f, char tipo_item, char tipo_valor, int posicao,
 
   // Traduz escrita ou leitura de parametros para/da a pilha
   if (tipo_item == 'p') {
-    printf("# Item é um parametro\n");
     // armazena o registrador desse parametro numa string
     snprintf(registrador, sizeof(registrador), "%s",
              getRegistrador(f, tipo_item, tipo_valor, posicao));
 
     if (tipo_valor == 'a') {
       if (operacao == 'w') {
-        printf("movq %s, -%d(%%rbp) # guarda o valor do parametro %c%c%d\n",
+        printf("movq %s, -%d(%%rbp) # guarda o valor do parametro %c%c%d\n\n",
                registrador, getOffset(f, tipo_item, posicao), tipo_item,
                tipo_valor, posicao);
       } else if (operacao == 'r') {
-        printf("movq -%d(%%rbp), %s # resgata o valor do parametro %c%c%d\n",
+        printf("movq -%d(%%rbp), %s # resgata o valor do parametro %c%c%d\n\n",
                getOffset(f, tipo_item, posicao), registrador, tipo_item,
                tipo_valor, posicao);
       }
     } else if (tipo_valor == 'i') {
       if (operacao == 'w') {
-        printf("movl %s, -%d(%%rbp) # guarda o valor do parametro %c%c%d\n",
+        printf("movl %s, -%d(%%rbp) # guarda o valor do parametro %c%c%d\n\n",
                registrador, getOffset(f, tipo_item, posicao), tipo_item,
                tipo_valor, posicao);
       } else if (operacao == 'r') {
-        printf("movl -%d(%%rbp), %s # resgate o valor do parametro %c%c%d\n",
+        printf("movl -%d(%%rbp), %s # resgate o valor do parametro %c%c%d\n\n",
                getOffset(f, tipo_item, posicao), registrador, tipo_item,
                tipo_valor, posicao);
       }
@@ -611,7 +610,7 @@ int main() {
   int line_count = 0; // contagem de linhas lidas
   int r;              // quantidade de valores lidos pelo sscanf
   int var_loc_count;  // contagem do total de variaveis locais da funcao
-  int if_count = 0; // contagem de quantos ifs tem na funcao
+  int if_count = 0;   // contagem de quantos ifs tem na funcao
 
   Func funcao;
   inicializaFuncao(&funcao);
@@ -740,6 +739,116 @@ int main() {
     }
 
     /*
+     * Atribuição com chamada de função
+     */
+    int numero_funcao;
+    char tipo_item_operando3;
+    char tipo_valor_operando3;
+    int posicao_operando3;
+    r = sscanf(line, "v%c%d = call f%d %c%c%d %c%c%d %c%c%d",
+               &tipo_valor_variavel, &posicao_variavel, &numero_funcao,
+               &tipo_item_operando1, &tipo_valor_operando1, &posicao_operando1,
+               &tipo_item_operando2, &tipo_valor_operando2, &posicao_operando2,
+               &tipo_item_operando3, &tipo_valor_operando3, &posicao_operando3);
+
+    // função com 1 ou mais parametros
+    if (r >= 3) {
+      int parametros;
+      if (r == 3) { // nenhum parametro
+        parametros = 0;
+      } else if (r == 6) { // 1 parametro
+        parametros = 1;
+      } else if (r == 9) { // 2 parametros
+        parametros = 2;
+      } else if (r == 12) { // 3 parametros
+        parametros = 3;
+      }
+      printf("# %s\n", line);
+
+      // Guarda o valor dos registradores de parametro na pilha
+      for (int i = 0; i < parametros; i++) {
+        char tipo_valor = funcao.param[i];
+        traduzSalvamentoItem(funcao, 'p', tipo_valor, i + 1, 'w');
+      }
+
+      // Move os valores necessarios para os registradores de parametros antes
+      // de chamara função
+
+      // Move o primeiro parametro
+      if (parametros >= 1) {
+        if (tipo_item_operando1 == 'p' || tipo_item_operando1 == 'v') {
+          if (tipo_valor_operando1 == 'i') {
+            printf("movl -%d(%%rbp), %%edi\n",
+                   getOffset(funcao, tipo_item_operando1, posicao_operando1));
+          } else if (tipo_valor_operando1 == 'a') {
+            printf("movq -%d(%%rbp), %%rdi\n",
+                   getOffset(funcao, tipo_item_operando1, posicao_operando1));
+          } else if (tipo_valor_operando1 == 'r') {
+            printf("movl %s, %%edi\n",
+                   getRegistrador(funcao, tipo_item_operando1,
+                                  tipo_valor_operando1, posicao_operando1));
+          }
+        } else if (tipo_item_operando1 == 'c') {
+          printf("movl $%d, %%edi\n", posicao_operando1);
+        }
+      }
+
+      // Move o segundo parametro
+      if (parametros >= 2) {
+        if (tipo_item_operando2 == 'p' || tipo_item_operando2 == 'v') {
+          if (tipo_valor_operando2 == 'i') {
+            printf("movl -%d(%%rbp), %%esi\n",
+                   getOffset(funcao, tipo_item_operando2, posicao_operando2));
+          } else if (tipo_valor_operando2 == 'a') {
+            printf("movq -%d(%%rbp), %%rsi\n",
+                   getOffset(funcao, tipo_item_operando2, posicao_operando2));
+          } else if (tipo_valor_operando2 == 'r') {
+            printf("movl %s, %%esi\n",
+                   getRegistrador(funcao, tipo_item_operando2,
+                                  tipo_valor_operando2, posicao_operando2));
+          }
+        } else if (tipo_item_operando2 == 'c') {
+          printf("movl $%d, %%esi\n", posicao_operando2);
+        }
+      }
+
+      // Move o terceiro parametro
+      if (parametros >= 3) {
+        if (tipo_item_operando3 == 'p' || tipo_item_operando3 == 'v') {
+          if (tipo_valor_operando3 == 'i') {
+            printf("movl -%d(%%rbp), %%edx\n",
+                   getOffset(funcao, tipo_item_operando3, posicao_operando3));
+          } else if (tipo_valor_operando3 == 'a') {
+            printf("movq -%d(%%rbp), %%rdx\n",
+                   getOffset(funcao, tipo_item_operando3, posicao_operando3));
+          } else if (tipo_valor_operando3 == 'r') {
+            printf("movl %s, %%edx\n",
+                   getRegistrador(funcao, tipo_item_operando3,
+                                  tipo_valor_operando3, posicao_operando3));
+          }
+        } else if (tipo_item_operando3 == 'c') {
+          printf("movl $%d, %%edx\n", posicao_operando3);
+        }
+      }
+
+      printf("call f%d\n", numero_funcao);
+      if (tipo_valor_variavel == 'i') {
+        printf("movl %%eax, -%d(%%rbp)\n\n",
+               getOffset(funcao, 'v', posicao_variavel));
+      } else if (tipo_valor_variavel == 'r') {
+        printf(
+            "movl %%eax, %s\n\n",
+            getRegistrador(funcao, 'v', tipo_valor_variavel, posicao_variavel));
+      }
+
+      // Resgata os valores dos registradores de parametro na pilha
+      for (int i = 0; i < parametros; i++) {
+        char tipo_valor = funcao.param[i];
+        traduzSalvamentoItem(funcao, 'p', tipo_valor, i + 1, 'r');
+      }
+    }
+
+    /*
      * Condicionais
      */
 
@@ -775,7 +884,8 @@ int main() {
 
       // Verifica se o primeiro dado é um parâmetro
       if (tipo_item_operando1 == 'p') {
-        printf("# var = %c%c%d\n", tipo_item_operando1, tipo_valor_operando1, posicao_operando1);
+        printf("# var = %c%c%d\n", tipo_item_operando1, tipo_valor_operando1,
+               posicao_operando1);
         snprintf(var1, sizeof(var1), "%s",
                  getRegistrador(funcao, tipo_item_operando1,
                                 tipo_valor_operando1, posicao_operando1));
@@ -855,12 +965,11 @@ int main() {
       continue;
     }
 
-
-    if (strncmp(line, "set", 3) == 0 ||
-        strncmp(line, "get", 3) == 0) {
+    if (strncmp(line, "set", 3) == 0 || strncmp(line, "get", 3) == 0) {
       printf("# %s\n", line);
       printf("# TODO: Implementação do set e do get\n\n");
     }
   }
+
   return 0;
 }

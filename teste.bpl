@@ -24,13 +24,16 @@ endif
 return ci-1
 end
 
-function f2 pi1
+function f2 pa1
 def
-var vi1
-vet va2 size ci30
-var vi3
+reg vr1
+var vi2
+vet va3 size ci30
 enddef
-return ci0
+vr1 = ci1
+vi2 = call f1 vr1 va3
+vi2 = call f1 ci5 pa1
+return vi2
 end
 
 function f3 pa1 pi2 pa3
