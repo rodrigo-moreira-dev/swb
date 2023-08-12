@@ -606,6 +606,107 @@ int main() {
                                tipo_valor_operando2, posicao_operando2);
       continue;
     }
+
+    /*
+     * Condicionais
+     */
+
+    char condicao[2];
+    char var1[8];
+	  char var2[8];
+	
+    /*
+    * Verifica se é um IF
+    */
+
+    r = sscanf(line, "if %c%c%d %c%c %c%c%d", &tipo_item_operando1, &tipo_valor_operando1,
+               &posicao_operando1, &condicao[0], &condicao[1], &tipo_item_operando2,
+               &tipo_valor_operando2, &posicao_operando2);
+
+    if(r == 8) {
+	  // Verifica se o primeiro dado é uma a variável 
+      if(tipo_item_operando1 == "v"){
+		// Verifica se é uma variável inteira
+        if(tipo_valor_operando1 == "i"){
+          snprintf(var1, sizeof(var1), "-%d(%%rbp)", getOffset(funcao, tipo_item_operando1, posicao_operando1));
+        }
+		// Verifica se é uma variável de registrador
+        else if(tipo_valor_operando1 == "r"){
+          snprintf(var1, sizeof(var1), "%s"), getRegistrador(funcao, tipo_item_operando1, tipo_valor_operando1, posicao_operando1));
+        }
+      }
+      
+    // Verifica se o primeiro dado é um parâmetro
+	  if(tipo_item_operando1 == "p"){
+		  snprintf(var1, sizeof(var1), "%s", getRegistrador(funcao, tipo_item_operando1, tipo_valor_operando1, posicao_operando1));
+	  }
+
+    // Verifica se o primeiro dado é uma constante
+    if(tipo_item_operando1 == "c"){
+		  snprintf(var1, sizeof(var1), "$%d", posicao_operando1);
+	  }
+	  
+	  // Verifica se o segundo dado é uma a variável 
+      if(tipo_item_operando2 == "v"){
+		// Verifica se é uma variável inteira
+        if(tipo_valor_operando2 == "i"){
+          snprintf(var2, sizeof(var2), "-%d(%%rbp)", getOffset(funcao, tipo_item_operando2, posicao_operando2));
+        }
+		// Verifica se é uma variável de registrador
+        else if(tipo_valor_operando2 == "r"){
+          snprintf(var2, sizeof(var2), "%s"), getRegistrador(funcao, tipo_item_operando2, tipo_valor_operando2, posicao_operando2));
+        }
+      }
+	  
+	  // Verifica se o segundo dado é um parâmetro
+	  if(tipo_item_operando1 == "p"){
+		snprintf(var2, sizeof(var2), "%s", getRegistrador(funcao, tipo_item_operando2, tipo_valor_operando2, posicao_operando2));
+	  }
+
+    // Verifica se o segundo dado é uma constante
+    if(tipo_item_operando1 == "c"){
+		  snprintf(var2, sizeof(var2), "$%d", posicao_operando2);
+	  }
+	  
+	  printf("cmpl %s, %s \n", var2, var1);
+	  
+	  switch(condicao){
+	  
+	  case "eq":
+		  printf("jne end_if");
+	  break;
+	  
+	  case "ne":
+		  printf("je end_if");
+	  break;
+	  
+	  case "lt":
+      printf("jge end_if");
+	  break;
+	  
+	  case "le":
+      printf("jg end_if");
+	  break;
+	  
+	  case "gt":
+      printf("jle end_if");
+	  break;
+	  
+	  case "ge":
+      printf("jl end_if");
+	  break;
+	  
+	  default:
+      perror("Condição inválida");
+	  break;
+	  }
+    }
+
+    if (strncmp(line, "endif", 5) == 0) {
+      printf("end_if");
+      continue;
+    }
+
   }
 
   return 0;
