@@ -927,8 +927,6 @@ int main() {
 
       // Verifica se o primeiro dado é um parâmetro
       if (tipo_item_operando1 == 'p') {
-        printf("# var = %c%c%d\n", tipo_item_operando1, tipo_valor_operando1,
-               posicao_operando1);
         snprintf(var1, sizeof(var1), "%s",
                  getRegistrador(funcao, tipo_item_operando1,
                                 tipo_valor_operando1, posicao_operando1));
@@ -936,15 +934,28 @@ int main() {
 
       // Verifica se o primeiro dado é uma constante
       if (tipo_item_operando1 == 'c') {
-        snprintf(var1, sizeof(var1), "$%d", posicao_operando1);
+        // Move para um registrador temporario pois o cmpl nao pode ter como
+        // segundo parametro um valor imediato
+        printf("movl $%d, %%eax\n", posicao_operando1);
+        snprintf(var1, sizeof(var1), "%%eax");
       }
 
       // Verifica se o segundo dado é uma a variável
       if (tipo_item_operando2 == 'v') {
         // Verifica se é uma variável inteira
         if (tipo_valor_operando2 == 'i') {
-          snprintf(var2, sizeof(var2), "-%d(%%rbp)",
-                   getOffset(funcao, tipo_item_operando2, posicao_operando2));
+          // Se o primeiro dado também é uma variavel de pilha, um dos dois deve
+          // ser movido para registrador para evitar uma comparação memoria
+          // memoria
+          if (tipo_item_operando1 == 'v' && tipo_valor_operando1 == 'i') {
+            // Arbitrariamente vamos mover o segundo dado (o primeiro
+            // parametro do cmpl) para um registrador temporario
+            printf("movl -%d(%%rbp), %%eax\n", getOffset(funcao, tipo_item_operando2, posicao_operando2));
+            snprintf(var2, sizeof(var2), "%%eax");
+          } else {
+            snprintf(var2, sizeof(var2), "-%d(%%rbp)",
+                     getOffset(funcao, tipo_item_operando2, posicao_operando2));
+          }
         }
         // Verifica se é uma variável de registrador
         else if (tipo_valor_operando2 == 'r') {
