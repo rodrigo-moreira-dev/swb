@@ -632,6 +632,19 @@ int main() {
                &funcao.param[0], &funcao.param[1], &funcao.param[2]);
     // Verifica se foi possivel ler a declaração da função
     if (r >= 1) {
+      printf("# %s\n", line);
+      // Imprime comentarios com os registradores de cada parametro
+      int i = 0;
+      while (i < MAX_PARAM) {
+        char tipo_valor_parametro = funcao.param[i];
+        if (tipo_valor_parametro == '\0') {
+          break;
+        } else if (tipo_valor_parametro != '\0') {
+          printf("# p%c%d: %s\n", funcao.param[i], i + 1,
+                 getRegistrador(funcao, 'p', tipo_valor_parametro, i + 1));
+        }
+        i++;
+      }
       continue;
     }
 
@@ -776,57 +789,87 @@ int main() {
 
       // Move o primeiro parametro
       if (parametros >= 1) {
-        if (tipo_item_operando1 == 'p' || tipo_item_operando1 == 'v') {
-          if (tipo_valor_operando1 == 'i') {
+        if (tipo_item_operando1 == 'p') {
+          if (tipo_valor_operando1 == 'i') { // pi - parametro inteiro
             printf("movl -%d(%%rbp), %%edi\n",
                    getOffset(funcao, tipo_item_operando1, posicao_operando1));
-          } else if (tipo_valor_operando1 == 'a') {
+          } else if (tipo_valor_operando1 == 'a') { // pa - parametro array
             printf("movq -%d(%%rbp), %%rdi\n",
                    getOffset(funcao, tipo_item_operando1, posicao_operando1));
-          } else if (tipo_valor_operando1 == 'r') {
+          }
+        } else if (tipo_item_operando1 == 'v') {
+          if (tipo_valor_operando1 == 'i') { // vi - variavel inteira de pilha
+            printf("movl -%d(%%rbp), %%edi\n",
+                   getOffset(funcao, tipo_item_operando1, posicao_operando1));
+          } else if (tipo_valor_operando1 ==
+                     'a') { // va - variavel array de pilha
+            printf("leaq -%d(%%rbp), %%rdi\n",
+                   getOffset(funcao, tipo_item_operando1, posicao_operando1));
+          } else if (tipo_valor_operando1 ==
+                     'r') { // vr - variavel inteira de registrador
             printf("movl %s, %%edi\n",
                    getRegistrador(funcao, tipo_item_operando1,
                                   tipo_valor_operando1, posicao_operando1));
           }
-        } else if (tipo_item_operando1 == 'c') {
+        } else if (tipo_item_operando1 == 'c') { // ci - constante inteirad
           printf("movl $%d, %%edi\n", posicao_operando1);
         }
       }
 
       // Move o segundo parametro
       if (parametros >= 2) {
-        if (tipo_item_operando2 == 'p' || tipo_item_operando2 == 'v') {
-          if (tipo_valor_operando2 == 'i') {
+        if (tipo_item_operando2 == 'p') {
+          if (tipo_valor_operando2 == 'i') { // pi - parametro inteiro
             printf("movl -%d(%%rbp), %%esi\n",
                    getOffset(funcao, tipo_item_operando2, posicao_operando2));
-          } else if (tipo_valor_operando2 == 'a') {
+          } else if (tipo_valor_operando2 == 'a') { // pa - parametro array
             printf("movq -%d(%%rbp), %%rsi\n",
                    getOffset(funcao, tipo_item_operando2, posicao_operando2));
-          } else if (tipo_valor_operando2 == 'r') {
+          }
+        } else if (tipo_item_operando2 == 'v') {
+          if (tipo_valor_operando2 == 'i') { // vi - variavel inteira de pilha
+            printf("movl -%d(%%rbp), %%esi\n",
+                   getOffset(funcao, tipo_item_operando2, posicao_operando2));
+          } else if (tipo_valor_operando2 ==
+                     'a') { // va - variavel array de pilha
+            printf("leaq -%d(%%rbp), %%rsi\n",
+                   getOffset(funcao, tipo_item_operando2, posicao_operando2));
+          } else if (tipo_valor_operando2 ==
+                     'r') { // vr - variavel inteira de registrador
             printf("movl %s, %%esi\n",
                    getRegistrador(funcao, tipo_item_operando2,
                                   tipo_valor_operando2, posicao_operando2));
           }
-        } else if (tipo_item_operando2 == 'c') {
+        } else if (tipo_item_operando2 == 'c') { // ci - constante inteirad
           printf("movl $%d, %%esi\n", posicao_operando2);
         }
       }
 
       // Move o terceiro parametro
       if (parametros >= 3) {
-        if (tipo_item_operando3 == 'p' || tipo_item_operando3 == 'v') {
-          if (tipo_valor_operando3 == 'i') {
+        if (tipo_item_operando3 == 'p') {
+          if (tipo_valor_operando3 == 'i') { // pi - parametro inteiro
             printf("movl -%d(%%rbp), %%edx\n",
                    getOffset(funcao, tipo_item_operando3, posicao_operando3));
-          } else if (tipo_valor_operando3 == 'a') {
+          } else if (tipo_valor_operando3 == 'a') { // pa - parametro array
             printf("movq -%d(%%rbp), %%rdx\n",
                    getOffset(funcao, tipo_item_operando3, posicao_operando3));
-          } else if (tipo_valor_operando3 == 'r') {
+          }
+        } else if (tipo_item_operando3 == 'v') {
+          if (tipo_valor_operando3 == 'i') { // vi - variavel inteira de pilha
+            printf("movl -%d(%%rbp), %%edx\n",
+                   getOffset(funcao, tipo_item_operando3, posicao_operando3));
+          } else if (tipo_valor_operando3 ==
+                     'a') { // va - variavel array de pilha
+            printf("leaq -%d(%%rbp), %%rdx\n",
+                   getOffset(funcao, tipo_item_operando3, posicao_operando3));
+          } else if (tipo_valor_operando3 ==
+                     'r') { // vr - variavel inteira de registrador
             printf("movl %s, %%edx\n",
                    getRegistrador(funcao, tipo_item_operando3,
                                   tipo_valor_operando3, posicao_operando3));
           }
-        } else if (tipo_item_operando3 == 'c') {
+        } else if (tipo_item_operando3 == 'c') { // ci - constante inteirad
           printf("movl $%d, %%edx\n", posicao_operando3);
         }
       }
