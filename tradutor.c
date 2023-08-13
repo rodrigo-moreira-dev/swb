@@ -1008,60 +1008,58 @@ int main() {
       continue;
     }
 
-    if (strncmp(line, "set", 3) == 0 || strncmp(line, "get", 3) == 0) {
-      printf("# %s\n", line);
-      printf("# TODO: Implementação do set e do get\n\n");
-    }
-  }
-
     /*
      * Método GET
-    */
-
+     */
     int index;
-
-    r = sscanf(line, "get %ca%d index ci%d to %c%c%d", &tipo_item_operando1, &posicao_operando1, 
-                                                       &index, &tipo_item_operando2, &tipo_valor_operando2,
-                                                       &posicao_operando2); 
-
-    if(r == 6){
-
-      if(tipo_item_operando1 == 'v'){
-        snprintf(var1, sizeof(var1), "-%d(%%rbp)", getOffset(funcao, tipo_item_operando1, posicao_operando1) + (index * 4);
+    r = sscanf(line, "get %ca%d index ci%d to %c%c%d", &tipo_item_operando1,
+               &posicao_operando1, &index, &tipo_item_operando2,
+               &tipo_valor_operando2, &posicao_operando2);
+    if (r == 6) {
+      printf("# %s\n", line);
+      if (tipo_item_operando1 == 'v') {
+        snprintf(var1, sizeof(var1), "-%d(%%rbp)",
+                 getOffset(funcao, tipo_item_operando1, posicao_operando1) -
+                     (index * 4));
+      } else if (tipo_item_operando1 == 'p') {
+        snprintf(var1, sizeof(var1), "%s",
+                 getRegistrador(funcao, tipo_item_operando1, 'a',
+                                posicao_operando1));
       }
-      else if(tipo_item_operando1 == 'p'){
-        snprintf(var1, sizeof(var1), "%s", getRegistrador(funcao, tipo_item_operando1, 'a', posicao_operando1);
-      }
 
-      if(tipo_item_operando2 == 'v'){
-        if(tipo_valor_operando2 == 'i'){
-          snprintf(var2, sizeof(var2), "-%d(%%rbp)", getOffset(funcao, tipo_item_operando2, posicao_operando2);
+      if (tipo_item_operando2 == 'v') {
+        if (tipo_valor_operando2 == 'i') {
+          snprintf(var2, sizeof(var2), "-%d(%%rbp)",
+                   getOffset(funcao, tipo_item_operando2, posicao_operando2));
+        } else if (tipo_valor_operando2 == 'r') {
+          snprintf(var2, sizeof(var2), "%s",
+                   getRegistrador(funcao, tipo_item_operando2, 'a',
+                                  posicao_operando2));
         }
-        else if(tipo_valor_operando2 == 'r'){
-          snprintf(var2, sizeof(var2), "%s", getRegistrador(funcao, tipo_item_operando2, 'a', posicao_operando2);
-        }
-          
-      }
-      else if(tipo_item_operando2 == 'p'){
-        snprintf(var2, sizeof(var2), "%s", getRegistrador(funcao, tipo_item_operando2, 'a', posicao_operando2);
+
+      } else if (tipo_item_operando2 == 'p') {
+        snprintf(var2, sizeof(var2), "%s",
+                 getRegistrador(funcao, tipo_item_operando2, 'a',
+                                posicao_operando2));
       }
 
-      if(tipo_item_operando1 == 'p'){
-        printf("movabs $%d, %%rax /n
-              imulq $4, %%rax /n
-              addq %s, %%rax /n
-              movl (%%rax), %s /n", index, var1, var2);
+      if (tipo_item_operando1 == 'p') {
+        printf("movabs $%d, %%rax\n"
+               "imulq $4, %%rax\n"
+               "addq %s, %%rax\n"
+               "movl (%%rax), %s\n\n",
+               index, var1, var2);
+      } else if (tipo_item_operando1 == 'v') {
+        printf("movl %s, %%eax\n", var1);
+        printf("movl %%eax, %s\n\n", var2);
       }
-      else if(tipo_item_operando1 == 'v'){
-        printf("movl %s, %s /n", var1, var2);
-      }
-      
     }
 
     if (strncmp(line, "set", 3) == 0) {
       printf("# %s\n", line);
       printf("# TODO: Implementação do set\n\n");
     }
+  }
 
   return 0;
 }

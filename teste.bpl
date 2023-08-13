@@ -33,6 +33,10 @@ enddef
 vr1 = ci1
 vi2 = call f1 vr1 va3
 vi2 = call f1 ci5 pa1
+get pa1 index ci3 to vr1
+get pa1 index ci0 to vi2
+get va3 index ci5 to vr1
+get va3 index ci11 to vi2
 return vi2
 end
 
