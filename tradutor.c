@@ -616,6 +616,8 @@ int main() {
   inicializaFuncao(&funcao);
 
   // Inicio do programa em assembly
+  printf(".section .rodata\n\n");
+  printf(".data\n\n");
   printf(".text\n\n");
 
   // Lê uma linha por vez
