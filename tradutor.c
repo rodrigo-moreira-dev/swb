@@ -486,8 +486,15 @@ void traduzAtribuicaoSimples(Func f, char tipo_valor_variavel,
              getRegistrador(f, tipo_item_operando, tipo_valor_operando,
                             posicao_operando));
   } else if (tipo_valor_operando == 'i') { // operando é variavel local de pilha
-    snprintf(source, sizeof(source), "-%d(%%rbp)",
-             getOffset(f, 'v', posicao_operando));
+    // Verifica se o primeiro operando também era uma variavel de pilha para
+    // usar um registrador temporario para evitar movl MEMORIA MEMORIA
+    if (tipo_valor_variavel == 'i') {
+      printf("movl -%d(%%rbp), %%eax\n", getOffset(f, 'v', posicao_operando));
+      snprintf(source, sizeof(source), "%%eax");
+    } else {
+      snprintf(source, sizeof(source), "-%d(%%rbp)",
+               getOffset(f, 'v', posicao_operando));
+    }
   }
 
   printf("movl %s, %s\n\n", source, dest);
@@ -952,7 +959,8 @@ int main() {
           if (tipo_item_operando1 == 'v' && tipo_valor_operando1 == 'i') {
             // Arbitrariamente vamos mover o segundo dado (o primeiro
             // parametro do cmpl) para um registrador temporario
-            printf("movl -%d(%%rbp), %%eax\n", getOffset(funcao, tipo_item_operando2, posicao_operando2));
+            printf("movl -%d(%%rbp), %%eax\n",
+                   getOffset(funcao, tipo_item_operando2, posicao_operando2));
             snprintf(var2, sizeof(var2), "%%eax");
           } else {
             snprintf(var2, sizeof(var2), "-%d(%%rbp)",
