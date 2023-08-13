@@ -1047,7 +1047,8 @@ int main() {
         printf("movabs $%d, %%rax\n"
                "imulq $4, %%rax\n"
                "addq %s, %%rax\n"
-               "movl (%%rax), %s\n\n",
+               "movl (%%rax), %%eax\n"
+               "movl %%eax, %s\n\n",
                index, var1, var2);
       } else if (tipo_item_operando1 == 'v') {
         printf("movl %s, %%eax\n", var1);
