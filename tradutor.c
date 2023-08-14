@@ -418,8 +418,8 @@ void desalocaRegistradores(Func f) {
 }
 
 void traduzFimFuncao(Func f) {
-  desalocaRegistradores(f);
   printf("fim_f%d:\n", f.nome);
+  desalocaRegistradores(f);
   printf("leave\n");
   printf("ret\n\n");
 }
