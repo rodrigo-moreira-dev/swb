@@ -1054,13 +1054,13 @@ int main() {
                    getOffset(funcao, tipo_item_operando2, posicao_operando2));
         } else if (tipo_valor_operando2 == 'r') {
           snprintf(var2, sizeof(var2), "%s",
-                   getRegistrador(funcao, tipo_item_operando2, 'a',
+                   getRegistrador(funcao, tipo_item_operando2, tipo_valor_operando2,
                                   posicao_operando2));
         }
 
       } else if (tipo_item_operando2 == 'p') {
         snprintf(var2, sizeof(var2), "%s",
-                 getRegistrador(funcao, tipo_item_operando2, 'a',
+                 getRegistrador(funcao, tipo_item_operando2, tipo_valor_operando2,
                                 posicao_operando2));
       }
 
@@ -1077,9 +1077,53 @@ int main() {
       }
     }
 
-    if (strncmp(line, "set", 3) == 0) {
+    /*
+     * Método SET
+     */
+    r = sscanf(line, "set %ca%d index ci%d with %c%c%d", &tipo_item_operando1,
+               &posicao_operando1, &index, &tipo_item_operando2,
+               &tipo_valor_operando2, &posicao_operando2);
+    if (r == 6) {
       printf("# %s\n", line);
-      printf("# TODO: Implementação do set\n\n");
+      if (tipo_item_operando1 == 'v') {
+        snprintf(var1, sizeof(var1), "-%d(%%rbp)",
+                 getOffset(funcao, tipo_item_operando1, posicao_operando1) -
+                     (index * 4));
+      } else if (tipo_item_operando1 == 'p') {
+        snprintf(var1, sizeof(var1), "%s",
+                 getRegistrador(funcao, tipo_item_operando1, 'a',
+                                posicao_operando1));
+      }
+
+      if (tipo_item_operando2 == 'v') {
+        if (tipo_valor_operando2 == 'i') { // variavel inteira de pilha
+          printf("movl -%d(%%rbp), %%r10d\n",
+                 getOffset(funcao, tipo_item_operando2, posicao_operando2));
+          snprintf(var2, sizeof(var2), "%%r10d");
+        } else if (tipo_valor_operando2 ==
+                   'r') { // variavel inteira de registrador
+          snprintf(var2, sizeof(var2), "%s",
+                   getRegistrador(funcao, tipo_item_operando2,
+                                  tipo_valor_operando2, posicao_operando2));
+        }
+
+      } else if (tipo_item_operando2 == 'p') {
+        snprintf(var2, sizeof(var2), "%s",
+                 getRegistrador(funcao, tipo_item_operando2,
+                                tipo_valor_operando2, posicao_operando2));
+      } else if (tipo_item_operando2 == 'c') {
+        snprintf(var2, sizeof(var2), "$%d", posicao_operando2);
+      }
+
+      if (tipo_item_operando1 == 'p') {
+        printf("movabs $%d, %%rax\n"
+               "imulq $4, %%rax\n"
+               "addq %s, %%rax\n"
+               "movl %s, (%%rax)\n\n",
+               index, var1, var2);
+      } else if (tipo_item_operando1 == 'v') {
+        printf("movl %s, %s\n\n", var2, var1);
+      }
     }
   }
 
