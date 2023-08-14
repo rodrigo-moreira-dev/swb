@@ -563,7 +563,7 @@ void traduzAtribuicaoOperacao(Func f, char tipo_valor_variavel,
   // Como a tradução da divisão é levemente diferente ela é feita separada
   if (tipo_item_operando2 == 'c') { // operando é constante
     if (operacao == '/') {
-      printf("cdq\n"); // operacoes necessarias para se usar o idiv
+      printf("cltd\n"); // operacoes necessarias para se usar o idiv
       printf("movl $%d, %%ebx\n", posicao_operando2);
       printf("%s %%ebx\n", operacoes[i]);
     } else {
@@ -572,7 +572,7 @@ void traduzAtribuicaoOperacao(Func f, char tipo_valor_variavel,
   } else if (tipo_item_operando2 == 'p' ||  // operando é parametro
              tipo_valor_operando2 == 'r') { // ou variavel local de registrador
     if (operacao == '/') {
-      printf("cdq\n"); // operacoes necessarias para se usar o idiv
+      printf("cltd\n"); // operacoes necessarias para se usar o idiv
       printf("%s %s\n", operacoes[i],
              getRegistrador(f, tipo_item_operando2, tipo_valor_operando2,
                             posicao_operando2));
@@ -584,7 +584,7 @@ void traduzAtribuicaoOperacao(Func f, char tipo_valor_variavel,
   } else if (tipo_valor_operando2 ==
              'i') { // operando é variavel local de pilha
     if (operacao == '/') {
-      printf("cdq\n"); // operacoes necessarias para se usar o idiv
+      printf("cltd\n"); // operacoes necessarias para se usar o idiv
       printf("%s -%d(%%rbp)\n", operacoes[i],
              getOffset(f, 'v', posicao_operando2));
     } else {
